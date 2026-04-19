@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<title>好洺餐飲中控中心 · Haoming Central Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700;900&family=Noto+Sans+TC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.14.1/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.14.1/firebase-auth-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.14.1/firebase-firestore-compat.min.js"></script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body { font-family: 'Noto Sans TC', -apple-system, system-ui, sans-serif; background: #f5f1ea; color: #0a0a0a; line-height: 1.6; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; }
+input { font-family: inherit; }
+
+:root { --ink: #0a0a0a; --paper: #f5f1ea; --cream: #ede6d6; --card: #ffffff; --accent: #c2410c; --accent-light: #ea580c; --muted: #57534e; --muted-light: #a8a29e; --line: #e7e5e4; --success: #047857; }
+
+.screen { display: none; min-height: 100vh; }
+.screen.active { display: block; }
+
+#bootScreen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--ink); color: var(--paper); text-align: center; }
+#bootScreen.hide { display: none; }
+.boot-inner { padding: 32px; }
+.boot-logo { font-family: 'Noto Serif TC', serif; font-size: 48px; font-weight: 900; color: var(--accent); margin-bottom: 8px; }
+.boot-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.3em; color: var(--muted-light); margin-bottom: 24px; }
+.boot-spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid rgba(245,241,234,0.2); border-top-color: var(--accent-light); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.boot-msg { font-size: 12px; color: var(--muted-light); margin-top: 12px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.1em; }
+
+#loginScreen { display: none; min-height: 100vh; background: var(--ink); color: var(--paper); position: relative; overflow: hidden; }
+#loginScreen.active { display: flex; align-items: center; justify-content: center; }
+#loginScreen::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle at 15% 25%, rgba(234,88,12,0.12) 0%, transparent 50%), radial-gradient(circle at 85% 75%, rgba(161,98,7,0.08) 0%, transparent 50%); pointer-events: none; }
+
+.login-card { position: relative; width: 100%; max-width: 420px; padding: 48px 32px; z-index: 1; }
+.login-brand { text-align: center; margin-bottom: 40px; }
+.login-brand-tag { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.3em; color: var(--accent-light); margin-bottom: 16px; padding: 4px 12px; border: 1px solid var(--accent); border-radius: 2px; }
+.login-title { font-family: 'Noto Serif TC', serif; font-size: 36px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 8px; }
+.login-title .accent { color: var(--accent-light); font-style: italic; }
+.login-subtitle { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; color: var(--muted-light); text-transform: uppercase; }
+.login-form { display: flex; flex-direction: column; gap: 16px; }
+.form-field { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; color: var(--muted-light); text-transform: uppercase; }
+.form-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(245,241,234,0.2); color: var(--paper); padding: 14px 16px; font-size: 16px; font-weight: 500; border-radius: 2px; outline: none; transition: all 0.2s; }
+.form-input:focus { border-color: var(--accent-light); background: rgba(234,88,12,0.08); }
+.form-input::placeholder { color: rgba(245,241,234,0.35); }
+.login-button { background: var(--accent); color: var(--paper); padding: 16px; font-size: 15px; font-weight: 600; letter-spacing: 0.1em; border-radius: 2px; transition: all 0.2s; margin-top: 8px; }
+.login-button:hover { background: var(--accent-light); transform: translateY(-1px); }
+.login-button:active { transform: translateY(0); }
+.login-button:disabled { background: var(--muted); cursor: not-allowed; transform: none; }
+.login-error { display: none; padding: 12px 14px; background: rgba(185,28,28,0.15); border: 1px solid rgba(185,28,28,0.4); color: #fca5a5; font-size: 13px; border-radius: 2px; margin-top: 8px; }
+.login-error.show { display: block; }
+.login-footer { text-align: center; margin-top: 32px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--muted-light); }
+.login-footer .status-dot { display: inline-block; width: 6px; height: 6px; background: var(--success); border-radius: 50%; margin-right: 6px; vertical-align: middle; animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.4; } }
+
+#mainScreen { background: var(--paper); }
+.topbar { background: var(--ink); color: var(--paper); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 2px solid var(--accent); }
+.topbar-brand { display: flex; align-items: center; gap: 10px; font-family: 'Noto Serif TC', serif; font-weight: 700; font-size: 16px; }
+.topbar-brand .logo { width: 24px; height: 24px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; font-family: 'Noto Serif TC', serif; color: var(--paper); }
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.role-badge { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; padding: 4px 10px; background: var(--accent); color: var(--paper); border-radius: 2px; }
+.topbar-btn { color: var(--paper); padding: 8px 10px; font-size: 18px; opacity: 0.7; transition: opacity 0.2s; }
+.topbar-btn:hover { opacity: 1; }
+
+.hero { padding: 32px 20px 24px; border-bottom: 1px solid var(--line); position: relative; }
+.hero-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.25em; color: var(--accent); margin-bottom: 8px; }
+.hero-meta::before { content: '● '; }
+.hero-title { font-family: 'Noto Serif TC', serif; font-size: 28px; font-weight: 700; line-height: 1.2; margin-bottom: 4px; letter-spacing: -0.01em; }
+.hero-title .accent { color: var(--accent); }
+.hero-subtitle { color: var(--muted); font-size: 14px; font-weight: 400; }
+
+.quickstats { padding: 20px 20px 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--card); border: 1px solid var(--line); padding: 14px 12px; border-radius: 2px; border-top: 2px solid var(--accent); }
+.stat-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; }
+.stat-value { font-family: 'Noto Serif TC', serif; font-size: 20px; font-weight: 700; line-height: 1.2; }
+.stat-unit { font-size: 11px; font-weight: 400; color: var(--muted); }
+
+.section { padding: 24px 20px; }
+.section-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+.section-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.25em; color: var(--accent); padding-bottom: 2px; border-bottom: 1px solid var(--accent); }
+.section-count { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.1em; }
+
+.modules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.module-card { background: var(--card); border: 1px solid var(--line); border-radius: 2px; padding: 20px; cursor: pointer; position: relative; transition: all 0.2s; display: flex; flex-direction: column; min-height: 160px; overflow: hidden; }
+.module-card.active:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(194,65,12,0.12); }
+.module-card.active:active { transform: translateY(0); }
+.module-card.soon { background: var(--cream); cursor: default; opacity: 0.75; }
+.module-card.locked { background: rgba(10,10,10,0.04); cursor: not-allowed; opacity: 0.5; }
+.module-status { position: absolute; top: 12px; right: 12px; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.15em; padding: 2px 8px; border-radius: 2px; }
+.module-status.live { background: var(--success); color: white; }
+.module-status.soon { background: transparent; color: var(--muted); border: 1px dashed var(--muted-light); }
+.module-status.locked { background: transparent; color: var(--muted-light); border: 1px solid var(--muted-light); }
+.module-icon { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: var(--ink); color: var(--paper); font-size: 20px; margin-bottom: 16px; border-radius: 2px; }
+.module-card:not(.active) .module-icon { background: var(--muted); opacity: 0.6; }
+.module-name { font-family: 'Noto Serif TC', serif; font-size: 18px; font-weight: 700; margin-bottom: 4px; line-height: 1.3; }
+.module-en { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--accent); margin-bottom: 10px; text-transform: uppercase; }
+.module-card:not(.active) .module-en { color: var(--muted); }
+.module-desc { font-size: 13px; color: var(--muted); line-height: 1.6; flex: 1; }
+.module-footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--muted); }
+.module-card.active .module-footer { color: var(--accent); }
+.module-arrow { font-size: 14px; transition: transform 0.2s; }
+.module-card.active:hover .module-arrow { transform: translateX(4px); }
+
+.footer { padding: 24px 20px 32px; margin-top: 24px; border-top: 1px solid var(--line); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.footer .version { color: var(--accent); }
+
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(10,10,10,0.6); backdrop-filter: blur(4px); z-index: 200; align-items: flex-end; justify-content: center; padding: 0; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--paper); width: 100%; max-width: 640px; max-height: 85vh; border-radius: 12px 12px 0 0; overflow: hidden; display: flex; flex-direction: column; animation: slideUp 0.3s ease-out; }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@media (min-width: 640px) { .modal-overlay { align-items: center; padding: 20px; } .modal { border-radius: 4px; max-height: 80vh; } }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: flex-start; background: var(--ink); color: var(--paper); }
+.modal-title { font-family: 'Noto Serif TC', serif; font-size: 20px; font-weight: 700; }
+.modal-title-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.25em; color: var(--accent-light); margin-bottom: 4px; }
+.modal-close { color: var(--paper); font-size: 24px; padding: 0 4px; margin-left: 16px; opacity: 0.7; }
+.modal-close:hover { opacity: 1; }
+.modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+.modal-body h3 { font-family: 'Noto Serif TC', serif; font-size: 16px; font-weight: 700; margin: 20px 0 10px; color: var(--ink); }
+.modal-body h3:first-child { margin-top: 0; }
+.modal-body p, .modal-body li { color: var(--muted); font-size: 14px; line-height: 1.8; margin-bottom: 8px; }
+.modal-body ul { padding-left: 20px; margin-bottom: 12px; }
+.modal-body code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--cream); padding: 1px 6px; border-radius: 2px; color: var(--ink); }
+.modal-body .highlight { background: var(--cream); border-left: 3px solid var(--accent); padding: 12px 16px; margin: 12px 0; font-size: 13px; color: var(--ink); }
+
+@media (max-width: 640px) {
+  .hero { padding: 24px 20px 20px; }
+  .hero-title { font-size: 24px; }
+  .quickstats { grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 16px 20px 0; }
+  .stat { padding: 10px 8px; }
+  .stat-value { font-size: 16px; }
+  .stat-label { font-size: 8px; }
+  .modules-grid { grid-template-columns: 1fr; }
+  .section { padding: 20px; }
+  .login-card { padding: 32px 24px; }
+  .login-title { font-size: 32px; }
+}
+
+.loading { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(245,241,234,0.3); border-top-color: var(--paper); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 8px; }
+</style>
+</head>
+<body>
+
+<div id="bootScreen">
+  <div class="boot-inner">
+    <div class="boot-logo">好洺</div>
+    <div class="boot-tag">CENTRAL HUB · INITIALIZING</div>
+    <div class="boot-spinner"></div>
+    <div class="boot-msg" id="bootMsg">連線至 haomin-system...</div>
+  </div>
+</div>
+
+<div id="loginScreen" class="screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-brand-tag">HAOMING F&B · CENTRAL HUB</div>
+      <h1 class="login-title">好洺<span class="accent">中控中心</span></h1>
+      <p class="login-subtitle">unified portal · v1.0</p>
+    </div>
+    <form class="login-form" id="loginForm">
+      <div class="form-field">
+        <label class="form-label" for="loginId">電子郵件 / 工號</label>
+        <input class="form-input" type="text" id="loginId" placeholder="boss@haomin.local 或 boss" autocomplete="username" required>
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="loginPwd">密碼</label>
+        <input class="form-input" type="password" id="loginPwd" placeholder="輸入您的密碼" autocomplete="current-password" required>
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <button type="submit" class="login-button" id="loginBtn">登入系統</button>
+    </form>
+    <div class="login-footer">
+      <span class="status-dot"></span>haomin-system · asia-east1 connected
+    </div>
+  </div>
+</div>
+
+<div id="mainScreen" class="screen">
+  <header class="topbar">
+    <div class="topbar-brand"><span class="logo">洺</span><span>中控中心</span></div>
+    <div class="topbar-actions">
+      <span class="role-badge" id="userBadge">—</span>
+      <button class="topbar-btn" onclick="showHelp()" title="操作說明">📖</button>
+      <button class="topbar-btn" onclick="logout()" title="登出">⎋</button>
+    </div>
+  </header>
+  <section class="hero">
+    <div class="hero-meta" id="heroMeta">—</div>
+    <h1 class="hero-title" id="heroTitle">—</h1>
+    <p class="hero-subtitle" id="heroSubtitle">—</p>
+  </section>
+  <section class="quickstats">
+    <div class="stat"><div class="stat-label">門市</div><div class="stat-value" id="statStores">—<span class="stat-unit"> 店</span></div></div>
+    <div class="stat"><div class="stat-label">員工</div><div class="stat-value" id="statEmployees">—<span class="stat-unit"> 人</span></div></div>
+    <div class="stat"><div class="stat-label">系統</div><div class="stat-value">2<span class="stat-unit"> / 6</span></div></div>
+  </section>
+  <section class="section">
+    <div class="section-header"><span class="section-label">ACTIVE MODULES</span><span class="section-count" id="activeCount">—</span></div>
+    <div class="modules-grid" id="activeModules"></div>
+  </section>
+  <section class="section">
+    <div class="section-header"><span class="section-label">COMING SOON</span><span class="section-count" id="comingCount">—</span></div>
+    <div class="modules-grid" id="comingModules"></div>
+  </section>
+  <footer class="footer">
+    <span>HAOMING F&B · CENTRAL HUB</span>
+    <span class="version">v1.0.0 · haomin-system</span>
+  </footer>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title-label" id="modalLabel">OPERATION MANUAL</div>
+        <div class="modal-title" id="modalTitle">操作說明</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+/* 好洺餐飲中控中心 v1.0.0 · Firebase: haomin-system */
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAk8D1oXTYaq9E1t96bPW-1rMu0EhW1JzQ",
+  authDomain: "haomin-system.firebaseapp.com",
+  projectId: "haomin-system",
+  storageBucket: "haomin-system.firebasestorage.app",
+  messagingSenderId: "348193196599",
+  appId: "1:348193196599:web:d9842d7666ce054739cdb2"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const SUBSYSTEMS = {
+  hr: 'https://haoting1205.github.io/haomin-hr/',
+  app: 'https://haoting1205.github.io/haomin-hr-app/',
+  pos: '#', finance: '#', line: '#', bi: '#'
+};
+
+const MODULES = [
+  { id: 'hr', icon: '👥', name: '人資管理端', en: 'HR MANAGEMENT', desc: '排班、請假、出勤、薪資、考績、員工資料完整管理。', status: 'live', version: 'v2.7.0', roles: ['boss', 'manager'] },
+  { id: 'app', icon: '📱', name: '員工 APP', en: 'EMPLOYEE APP', desc: '員工打卡、請假申請、排班查詢、薪資查詢、劃休管理。', status: 'live', version: 'v2.7.0', roles: ['boss', 'manager', 'employee'] },
+  { id: 'pos', icon: '🍽', name: 'POS 系統', en: 'POINT OF SALE', desc: '點餐、結帳、桌況管理、營業日報、跨店營運整合。', status: 'soon', version: 'PHASE 3', roles: ['boss', 'manager'] },
+  { id: 'finance', icon: '📊', name: '財務儀表板', en: 'FINANCE DASHBOARD', desc: '三店損益、食材成本率、人事費用、現金流、毛利分析。', status: 'soon', version: 'PHASE 3', roles: ['boss'] },
+  { id: 'line', icon: '💬', name: 'Line 客服後台', en: 'LINE SUPPORT HUB', desc: '自動客服、訂位管理、社群行銷、會員互動自動化。', status: 'soon', version: 'PHASE 4', roles: ['boss', 'manager'] },
+  { id: 'bi', icon: '📈', name: 'BI 智能分析', en: 'BUSINESS INTELLIGENCE', desc: '跨系統數據聚合、經營日報、KPI 追蹤、加盟店評比。', status: 'soon', version: 'PHASE 4', roles: ['boss', 'manager'] }
+];
+
+let currentUser = null;
+let currentEmployee = null;
+
+function switchScreen(id) {
+  document.getElementById('bootScreen').classList.add('hide');
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function setBootMsg(msg) { 
+  const el = document.getElementById('bootMsg'); 
+  if (el) el.textContent = msg; 
+}
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  let id = document.getElementById('loginId').value.trim();
+  const pwd = document.getElementById('loginPwd').value;
+  const errorEl = document.getElementById('loginError');
+  errorEl.classList.remove('show');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span>驗證中...';
+  try {
+    const email = id.includes('@') ? id : id + '@haomin.local';
+    await auth.signInWithEmailAndPassword(email, pwd);
+  } catch (err) {
+    let msg = '登入失敗';
+    if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') msg = '帳號或密碼錯誤';
+    else if (err.code === 'auth/invalid-email') msg = '帳號格式錯誤';
+    else if (err.code === 'auth/too-many-requests') msg = '嘗試次數過多,請稍後再試';
+    else if (err.code === 'auth/network-request-failed') msg = '網路連線失敗,請檢查網路';
+    else msg = err.message || '登入失敗,請聯繫老闆';
+    errorEl.textContent = '✕  ' + msg;
+    errorEl.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = '登入系統';
+  }
+});
+
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    currentUser = user;
+    setBootMsg('載入使用者資料...');
+    try { await loadUserProfile(); } catch (err) { console.error('載入失敗:', err); }
+    renderMain();
+    switchScreen('mainScreen');
+  } else {
+    currentUser = null;
+    currentEmployee = null;
+    switchScreen('loginScreen');
+  }
+});
+
+async function loadUserProfile() {
+  if (currentUser.email === 'boss@haomin.local') {
+    currentEmployee = { name: '老闆', role: 'boss', roleName: 'BOSS', store: '總公司', isBoss: true };
+    return;
+  }
+  try {
+    const snapshot = await db.collection('prod_employees').where('email', '==', currentUser.email).limit(1).get();
+    if (!snapshot.empty) {
+      const data = snapshot.docs[0].data();
+      currentEmployee = {
+        name: data.name || data.nickname || '員工',
+        role: inferRole(data),
+        roleName: inferRoleName(data),
+        store: data._store || data.store || '未設定',
+        raw: data
+      };
+    } else {
+      currentEmployee = { name: currentUser.email.split('@')[0], role: 'employee', roleName: 'EMPLOYEE', store: '未設定' };
+    }
+  } catch (err) {
+    console.warn('讀取員工資料失敗,使用預設值:', err);
+    currentEmployee = { name: currentUser.email.split('@')[0], role: 'employee', roleName: 'EMPLOYEE', store: '未設定' };
+  }
+}
+
+function inferRole(data) {
+  const title = (data.title || data.position || '').toLowerCase();
+  if (title.includes('老闆') || title.includes('負責人') || title.includes('boss')) return 'boss';
+  if (title.includes('店長') || title.includes('manager')) return 'manager';
+  return 'employee';
+}
+
+function inferRoleName(data) {
+  const role = inferRole(data);
+  return { boss: 'BOSS', manager: 'MANAGER', employee: 'EMPLOYEE' }[role];
+}
+
+async function logout() {
+  if (!confirm('確定要登出嗎?')) return;
+  try {
+    await auth.signOut();
+    document.getElementById('loginForm').reset();
+    document.getElementById('loginBtn').disabled = false;
+    document.getElementById('loginBtn').textContent = '登入系統';
+  } catch (err) {
+    alert('登出失敗: ' + err.message);
+  }
+}
+
+async function renderMain() {
+  const emp = currentEmployee || { name: '使用者', role: 'employee', roleName: 'USER', store: '—' };
+  document.getElementById('userBadge').textContent = emp.roleName;
+  const today = new Date();
+  const weekdays = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+  const hour = today.getHours();
+  const greeting = hour < 6 ? '深夜好' : hour < 12 ? '早安' : hour < 18 ? '午安' : '晚安';
+  document.getElementById('heroMeta').textContent = weekdays[today.getDay()] + ' · ' + today.getFullYear() + '.' + String(today.getMonth()+1).padStart(2,'0') + '.' + String(today.getDate()).padStart(2,'0');
+  document.getElementById('heroTitle').innerHTML = greeting + ',<span class="accent">' + emp.name + '</span>';
+  const subtitles = {
+    boss: '四店今日均正常營運,尚無待處理事項。',
+    manager: emp.store + '今日排班已就緒,祝您工作順利。',
+    employee: '祝您在 ' + emp.store + ' 工作順利。'
+  };
+  document.getElementById('heroSubtitle').textContent = subtitles[emp.role] || subtitles.employee;
+  try { await loadStats(emp); } catch (err) {
+    console.warn('載入統計失敗:', err);
+    document.getElementById('statStores').innerHTML = '4<span class="stat-unit"> 店</span>';
+    document.getElementById('statEmployees').innerHTML = '—<span class="stat-unit"> 人</span>';
+  }
+  renderModules(emp.role);
+}
+
+async function loadStats(emp) {
+  document.getElementById('statStores').innerHTML = '4<span class="stat-unit"> 店</span>';
+  try {
+    if (emp.role === 'boss') {
+      const snapshot = await db.collection('prod_employees').where('_active', '==', true).get();
+      document.getElementById('statEmployees').innerHTML = snapshot.size + '<span class="stat-unit"> 人</span>';
+    } else if (emp.role === 'manager') {
+      const snapshot = await db.collection('prod_employees').where('_active', '==', true).where('_store', '==', emp.store).get();
+      document.getElementById('statEmployees').innerHTML = snapshot.size + '<span class="stat-unit"> 人</span>';
+    } else {
+      document.getElementById('statEmployees').innerHTML = '1<span class="stat-unit"> 人</span>';
+    }
+  } catch (err) {
+    console.warn('無法讀取員工數:', err);
+    document.getElementById('statEmployees').innerHTML = '—<span class="stat-unit"> 人</span>';
+  }
+}
+
+function renderModules(userRole) {
+  const activeEl = document.getElementById('activeModules');
+  const comingEl = document.getElementById('comingModules');
+  activeEl.innerHTML = '';
+  comingEl.innerHTML = '';
+  let activeNum = 0, comingNum = 0;
+  MODULES.forEach(mod => {
+    const hasAccess = mod.roles.includes(userRole);
+    const card = document.createElement('div');
+    card.className = 'module-card';
+    let statusClass, statusLabel;
+    if (mod.status === 'live') {
+      if (hasAccess) {
+        card.classList.add('active');
+        card.onclick = () => openModule(mod);
+        statusClass = 'live'; statusLabel = 'LIVE';
+        activeNum++;
+      } else {
+        card.classList.add('locked');
+        statusClass = 'locked'; statusLabel = 'NO ACCESS';
+      }
+    } else {
+      card.classList.add('soon');
+      statusClass = 'soon'; statusLabel = 'SOON';
+      comingNum++;
+    }
+    card.innerHTML = '<span class="module-status ' + statusClass + '">' + statusLabel + '</span>' +
+      '<div class="module-icon">' + mod.icon + '</div>' +
+      '<div class="module-name">' + mod.name + '</div>' +
+      '<div class="module-en">' + mod.en + '</div>' +
+      '<div class="module-desc">' + mod.desc + '</div>' +
+      '<div class="module-footer"><span>' + mod.version + '</span>' +
+      (mod.status === 'live' && hasAccess ? '<span class="module-arrow">→</span>' : '') +
+      '</div>';
+    if (mod.status === 'live') activeEl.appendChild(card);
+    else comingEl.appendChild(card);
+  });
+  document.getElementById('activeCount').textContent = activeNum + ' 模組已上線';
+  document.getElementById('comingCount').textContent = comingNum + ' 模組建置中';
+  if (activeNum === 0) activeEl.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;padding:24px;text-align:center;font-size:13px;">您目前無已啟用模組的存取權限</p>';
+}
+
+function openModule(mod) {
+  const url = SUBSYSTEMS[mod.id];
+  if (!url || url === '#') { alert(mod.name + ' 尚未上線'); return; }
+  window.location.href = url;
+}
+
+function showHelp() {
+  document.getElementById('modalLabel').textContent = 'OPERATION MANUAL';
+  document.getElementById('modalTitle').textContent = '中控中心操作說明';
+  document.getElementById('modalBody').innerHTML = 
+    '<h3>什麼是中控中心?</h3>' +
+    '<p>中控中心是好洺餐飲所有數位系統的<strong>統一入口</strong>。登入一次,就能進入您有權限的所有模組(人資、員工APP、未來的POS、財務等),不需要重複登入或記多組帳號。</p>' +
+    '<div class="highlight"><strong>核心理念</strong>:一個登入口、一套帳號、一份資料。各系統獨立運作,資料在後台共享。</div>' +
+    '<h3>如何使用</h3>' +
+    '<ul><li>輸入您的<strong>電子郵件</strong>(例如 boss@haomin.local)與<strong>密碼</strong>登入</li>' +
+    '<li>也可以只輸入工號前綴(例如 boss),系統會自動補上 @haomin.local</li>' +
+    '<li>主畫面會根據您的角色顯示可存取的模組卡片</li>' +
+    '<li>點擊任一 <strong>LIVE</strong> 標記的模組,即自動進入該系統</li>' +
+    '<li>標記 <strong>SOON</strong> 的模組為規劃中,敬請期待</li></ul>' +
+    '<h3>角色與權限</h3>' +
+    '<ul><li><strong>老闆 (BOSS)</strong>:所有模組完整存取</li>' +
+    '<li><strong>店長 (MANAGER)</strong>:管理相關模組,財務限查看</li>' +
+    '<li><strong>員工 (EMPLOYEE)</strong>:僅限員工 APP</li></ul>' +
+    '<h3>忘記密碼?</h3>' +
+    '<p>請洽老闆或店長協助重設,復原密碼為 <code>haomin2026</code>。</p>' +
+    '<h3>系統資訊</h3>' +
+    '<p>中控中心 <code>v1.0.0</code><br>Firebase 專案: <code>haomin-system</code><br>資料庫位置: <code>asia-east1</code> (台灣)</p>';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+setTimeout(() => setBootMsg('驗證登入狀態...'), 500);
+setTimeout(() => setBootMsg('準備主畫面...'), 1200);
+setTimeout(() => {
+  const boot = document.getElementById('bootScreen');
+  if (!currentUser && boot && !boot.classList.contains('hide')) switchScreen('loginScreen');
+}, 2500);
+</script>
+
+</body>
+</html>
